@@ -58,7 +58,8 @@ exports.handler = async function(event) {
   // create an object with the course data to hold the return value from our lambda
   let returnValue = {
     courseNumber: courseData.courseNumber,
-    name: courseData.name
+    name: courseData.name,
+    
   }
 
   // set a new Array as part of the return value
@@ -71,6 +72,8 @@ exports.handler = async function(event) {
   let sections = sectionsQuery.docs
 
   // loop through the documents
+  
+  let sum = 0
   for (let i=0; i < sections.length; i++) {
     // get the document ID of the section
     let sectionId = sections[i].id
@@ -80,7 +83,7 @@ exports.handler = async function(event) {
     
     // create an Object to be added to the return value of our lambda
     let sectionObject = {}
-
+    
     // ask Firebase for the lecturer with the ID provided by the section; hint: read "Retrieve One Document (when you know the Document ID)" in the reference
     let lecturerQuery = await db.collection('lecturers').doc(sectionData.lecturerId).get()
 
@@ -94,7 +97,42 @@ exports.handler = async function(event) {
     returnValue.sections.push(sectionObject)
 
     // 🔥 your code for the reviews/ratings goes here
+    
+    // add the lecturer to the result
+    let reviewsQuery = await db.collection('reviews').where(`sectionId`, `==`, sectionId).get()
+
+    let reviews = reviewsQuery.docs 
+    // console.log(reviews)
+
+    let sum = 0
+    sectionObject.reviews = []
+    for (let j = 0; j < reviews.length; j++) {
+      let review = reviews[j].data()
+      // console.log(`Start For Loop. My Index is ${j}`)
+    // console.log(review)
+      // sectionObject.reviews = reviews
+      // console.log(sectionObject)
+      let reviewsObject = {
+        rating: review.rating,
+        body: review.body
+      }
+     
+      sectionObject.reviews.push(reviewsObject)
+      // console.log(sum)
+      sum = sum + review.rating
+      // console.log(`Added`)
+      // console.log(sum)
+      // sum (x) / count of (x) = Avg. 
+      // (x+y) / reviews.length = sectionObject.averageRating
+      sectionObject.averageRating = sum / reviews.length
+      // console.log(`End For Loop. My Index is ${j}`)
+    }
+  
+
   }
+  console.log(sum)  
+  // returnValue.courseRating = courseRating
+  // returnValue.sections.courseRating = course.Rating
 
   // return the standard response
   return {
