@@ -35,7 +35,7 @@
 let firebase = require(`./firebase`)
 
 // /.netlify/functions/courses?courseNumber=KIEI-451
-exports.handler = async function(event) {
+exports.handler = async function (event) {
 
   // get the course number being requested
   let courseNumber = event.queryStringParameters.courseNumber
@@ -59,7 +59,7 @@ exports.handler = async function(event) {
   let returnValue = {
     courseNumber: courseData.courseNumber,
     name: courseData.name,
-    
+    numberOfCourseReviews: 0
   }
 
   // set a new Array as part of the return value
@@ -72,18 +72,18 @@ exports.handler = async function(event) {
   let sections = sectionsQuery.docs
 
   // loop through the documents
-  
-  let sum = 0
-  for (let i=0; i < sections.length; i++) {
+
+  let sumCourse = 0
+  for (let i = 0; i < sections.length; i++) {
     // get the document ID of the section
     let sectionId = sections[i].id
 
     // get the data from the section
     let sectionData = sections[i].data()
-    
+
     // create an Object to be added to the return value of our lambda
     let sectionObject = {}
-    
+
     // ask Firebase for the lecturer with the ID provided by the section; hint: read "Retrieve One Document (when you know the Document ID)" in the reference
     let lecturerQuery = await db.collection('lecturers').doc(sectionData.lecturerId).get()
 
@@ -97,43 +97,58 @@ exports.handler = async function(event) {
     returnValue.sections.push(sectionObject)
 
     // 🔥 your code for the reviews/ratings goes here
-    
-    // add the lecturer to the result
+
+    // ask Firebase for the reviews corresponding to the Document ID of the section, wait for the response
     let reviewsQuery = await db.collection('reviews').where(`sectionId`, `==`, sectionId).get()
 
-    let reviews = reviewsQuery.docs 
-    // console.log(reviews)
-
+    // get the documents from the query
+    let reviews = reviewsQuery.docs
+    
+    // define sum
     let sum = 0
+
+    // set a new Array as part of the section object     
     sectionObject.reviews = []
+
+    // loop through the reviews
     for (let j = 0; j < reviews.length; j++) {
+      
+      // get the data from the review
       let review = reviews[j].data()
-      // console.log(`Start For Loop. My Index is ${j}`)
-    // console.log(review)
-      // sectionObject.reviews = reviews
-      // console.log(sectionObject)
+      
+      // create an object with the review data to hold the review specific data 
       let reviewsObject = {
         rating: review.rating,
         body: review.body
       }
-     
+
+      // add the reviews object to the section object
       sectionObject.reviews.push(reviewsObject)
-      // console.log(sum)
+      
+      // define sum 
       sum = sum + review.rating
-      // console.log(`Added`)
-      // console.log(sum)
-      // sum (x) / count of (x) = Avg. 
-      // (x+y) / reviews.length = sectionObject.averageRating
+      
+      // calculate and add the average rating to the section object 
       sectionObject.averageRating = sum / reviews.length
-      // console.log(`End For Loop. My Index is ${j}`)
-    }
+      
+      // calculate and add number of reviews to the section object 
+      sectionObject.numberOfReviews = reviews.length
+      
+    } 
+    
+    // define sumCourse to get sum of the course ratings 
+    sumCourse = sumCourse + sectionObject.averageRating
+    
+    // calculate and add the course rating to the return value
+    returnValue.courseRating = sumCourse / sections.length 
+    
+    // add the number of course reviews to the return value
+    returnValue.numberOfCourseReviews = returnValue.numberOfCourseReviews + reviews.length
+      
+    
+  } 
+
   
-
-  }
-  console.log(sum)  
-  // returnValue.courseRating = courseRating
-  // returnValue.sections.courseRating = course.Rating
-
   // return the standard response
   return {
     statusCode: 200,
